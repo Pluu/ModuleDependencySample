@@ -1,0 +1,44 @@
+// :app
+// :kotlin_lib
+// :kotlin_lib2
+// :features:feature1
+// :features:feature2
+
+task pluuGraph {
+    Closure dependsOnAction = { path, isAndroid ->
+        println("Q. " + path + " is Android Module?")
+        println("A: " + isAndroid)
+        if (isAndroid) {
+            dependsOn("$path:testDebugUnitTest")
+        } else {
+            dependsOn("$path:test")
+        }
+    }
+
+    findModules(rootProject, "", dependsOnAction)
+}
+
+private def findModules(Project project, String parentPath, Closure dependsOnAction) {
+    def childProjects = project.childProjects
+    if (childProjects.isEmpty()) {
+        println(project.name)
+        project.afterEvaluate {
+            def checkPlugins = [
+                    "com.android.application": true,
+                    "com.android.library"    : true,
+                    "java-library"           : false
+            ]
+
+            checkPlugins.forEach { plugin, isAndroid ->
+                if (project.pluginManager.hasPlugin(plugin)) {
+                    println("[" + parentPath + "] used " + plugin)
+                    dependsOnAction(parentPath, isAndroid)
+                }
+            }
+        }
+    } else {
+        childProjects.forEach { key, childProject ->
+            findModules(childProject, parentPath + ":" + childProject.name, dependsOnAction)
+        }
+    }
+}
